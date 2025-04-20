@@ -11,31 +11,45 @@ export async function getCabins() {
   return data;
 }
 
-export async function createCabin(newCabin) {
-  const imageName = `${Math.random()}-${newCabin.image.name}`.replaceAll(
-    "/",
-    ""
-  );
-  const imagePath = `${supabaseUrl}/storage/v1/object/public/cabin-images//${imageName}`;
+export async function createEditCabin(newCabin, id) {
+  const hasImagePath = newCabin.image?.startsWith?.(supabaseUrl);
 
-  const { data, error } = await supabase
-    .from("cabins")
-    .insert([{ ...newCabin, image: imagePath }])
-    .select();
+  let imageName = null;
+  let imagePath = null;
 
+  if (newCabin.image && typeof newCabin.image !== "string") {
+    imageName = `${Math.random()}-${newCabin.image.name}`.replaceAll("/", "");
+    imagePath = `${supabaseUrl}/storage/v1/object/public/cabin-images/${imageName}`;
+  } else if (hasImagePath) {
+    imagePath = newCabin.image;
+  } else {
+    imagePath = null;
+  }
+
+  let query = supabase.from("cabins");
+
+  // CREATE
+  if (!id) query = query.insert([{ ...newCabin, image: imagePath }]);
+
+  // EDIT
+  if (id) query = query.update({ ...newCabin, image: imagePath }).eq("id", id);
+
+  const { data, error } = await query.select().single();
   if (error) {
     console.log(error);
     throw new Error("Cabin could not be created");
   }
 
-  const { error: storageError } = await supabase.storage
-    .from("cabin-images")
-    .upload(imageName, newCabin.image);
+  if (imageName && newCabin.image && typeof newCabin.image !== "string") {
+    const { error: storageError } = await supabase.storage
+      .from("cabin-images")
+      .upload(imageName, newCabin.image);
 
-  if (storageError) {
-    await supabase.from("cabins").delete().eq("id", data.id);
-    console.log(storageError);
-    throw new Error("Cabin image could not be uploaded");
+    if (storageError) {
+      await supabase.from("cabins").delete().eq("id", data.id);
+      console.log(storageError);
+      throw new Error("Cabin image could not be uploaded");
+    }
   }
   return data;
 }
