@@ -12,6 +12,11 @@ import { useMoveBack } from "../../hooks/useMoveBack";
 import { useBooking } from "./useBooking";
 import Spinner from "../../ui/Spinner";
 import { useNavigate } from "react-router-dom";
+import { HiArrowUpOnSquare } from "react-icons/hi2";
+import { useCheckout } from "../check-in-out/useCheckout";
+import { useDeleteBooking } from "./useDeleteBooking";
+import Modal from "../../ui/Modal";
+import ConfirmDelete from "../../ui/ConfirmDelete";
 
 const HeadingGroup = styled.div`
   display: flex;
@@ -21,6 +26,8 @@ const HeadingGroup = styled.div`
 
 function BookingDetail() {
   const { booking, isPending } = useBooking();
+  const { checkout, isCheckingOut } = useCheckout();
+  const { deleteBooking } = useDeleteBooking();
   const navigate = useNavigate();
 
   const moveBack = useMoveBack();
@@ -49,13 +56,47 @@ function BookingDetail() {
 
       <ButtonGroup>
         {status === "unconfirmed" && (
-          <Button onClick={() => navigate(`/checkin/${bookingId}`)}>
+          <Button
+            size="medium"
+            variation="primary"
+            onClick={() => navigate(`/checkin/${bookingId}`)}
+          >
             Check in
           </Button>
         )}
-        <Button variation="secondary" onClick={moveBack}>
+
+        {status === "checked-in" && (
+          <Button
+            variation="primary"
+            size="medium"
+            icon={<HiArrowUpOnSquare />}
+            onClick={() => checkout(bookingId)}
+            disabled={isCheckingOut}
+          >
+            Check out
+          </Button>
+        )}
+        <Button variation="secondary" size="medium" onClick={moveBack}>
           Back
         </Button>
+
+        <Modal>
+          <Modal.Open opens="delete">
+            <Button variation="danger" size="medium">
+              Delete
+            </Button>
+          </Modal.Open>
+          <Modal.Window name="delete">
+            <ConfirmDelete
+              resourceName="booking"
+              onConfirm={() =>
+                deleteBooking(bookingId, {
+                  onSettled: () => navigate(-1),
+                })
+              }
+            />
+          </Modal.Window>
+        </Modal>
       </ButtonGroup>
     </>
   );
